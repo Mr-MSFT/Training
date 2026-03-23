@@ -7,7 +7,7 @@ Key references:
 - Enabling TCP and Named Pipes via PowerShell/SMO WMI is documented. (Microsoft Learn)
 #>
 
-$ErrorActionPreference = "Error"  # Change to "Stop" for stricter error handling and easier debugging
+$ErrorActionPreference = "Continue"  # Change to "Stop" for stricter error handling and easier debugging
 
 # -----------------------------
 # Config

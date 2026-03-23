@@ -12,7 +12,7 @@
 
 #Give the SQL script time to finish before this one runs
 Start-Sleep -Seconds 600
-
+$ErrorActionPreference = "Continue"  # Change to "Stop" for stricter error handling and easier debugging
 # ----------------------------
 # CONFIG (edit these)
 # ----------------------------
