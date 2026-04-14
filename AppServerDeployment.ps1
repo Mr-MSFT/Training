@@ -355,7 +355,8 @@ iisreset | Out-Null
 Write-Section "Stopping Default Web Site and starting $IISSiteName"
 if (Get-Website -Name "Default Web Site" -ErrorAction SilentlyContinue) {
   Stop-Website -Name "Default Web Site"
-  Write-Host "Default Web Site stopped."
+  Remove-Website -Name "Default Web Site"
+  Write-Host "Default Web Site stopped and deleted."
 }
 Start-Website -Name $IISSiteName
 Write-Host "$IISSiteName started."
