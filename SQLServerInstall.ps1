@@ -61,7 +61,7 @@ $existing = Get-Service -Name "MSSQLSERVER" -ErrorAction SilentlyContinue
 
 if (-not $existing) {
   Write-Section "Downloading SQL Server 2022 Express installer"
-  Invoke-WebRequest -Uri $SqlExpressExeUrl -OutFile $InstallerPath
+  Invoke-WebRequest -Uri $SqlExpressExeUrl -OutFile $InstallerPath -ErrorAction Continue
 
   Write-Section "Extracting SQL Express media"
   # Commonly used extraction switches for SQLEXPR_x64_ENU.exe (quiet extract)
