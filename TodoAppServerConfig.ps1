@@ -15,6 +15,9 @@ $appPoolName = "SimpleTodoPortalPool"
 # Script Execution
 # ============================================================================
 
+if (-not (Test-Path "C:\Temp")) { New-Item -ItemType Directory -Path "C:\Temp" -Force | Out-Null }
+Start-Transcript -Path "C:\Temp\TodoConfigOutput.txt" -Force
+
 # Install IIS and required features
 $iisFeature = Get-WindowsFeature -Name Web-Server
 if ($iisFeature.InstallState -ne 'Installed') {
@@ -132,3 +135,5 @@ URL=http://localhost/Todos
 "@
 Set-Content -Path $shortcutPath -Value $shortcutContent -Encoding ASCII
 Write-Host "Desktop shortcut created at '$shortcutPath'." -ForegroundColor Green
+
+Stop-Transcript
