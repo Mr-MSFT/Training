@@ -23,6 +23,7 @@ $SysAdminAccounts  = "BUILTIN\Administrators"
 $LogDir            = "C:\Program Files\Microsoft SQL Server\Setup Bootstrap\Log"
 $ExtractedFileName = "SQLEXPR_x64_ENU.exe"
 
+Start-Transcript -Path "C:\Temp\TodoSQLConfigOutput.txt" -Force
 
 # Optional: set a static TCP port after enabling TCP/IP
 $SetStaticTcpPort  = $true
@@ -217,3 +218,27 @@ Restore-SqlDatabase `
     -TrustServerCertificate
 
 Write-Host "Database 'TodoDb' restored successfully."
+
+
+# -----------------------------
+# 5) Run SQL configuration (database, login, user)
+# -----------------------------
+Write-Section "Running SQL configuration (database, login, user)"
+$sqlCommands = @(
+  "CREATE LOGIN todouser WITH PASSWORD = 'ReplaceWithARealPassword!';",
+  "USE TodoDb; CREATE USER todouser FOR LOGIN todouser;",
+  "USE TodoDb; ALTER ROLE db_owner ADD MEMBER todouser;"
+)
+
+try {
+  foreach ($cmd in $sqlCommands) {
+    Invoke-Sqlcmd -Query $cmd -ServerInstance "." -TrustServerCertificate
+  }
+  Write-Host "SQL configuration applied successfully."
+}
+catch {
+  throw "Failed to apply SQL configuration. Error: $($_.Exception.Message)"
+}
+
+
+Stop-Transcript

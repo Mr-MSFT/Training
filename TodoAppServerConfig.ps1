@@ -39,9 +39,13 @@ if ($iisFeature.InstallState -ne 'Installed') {
 $hostingBundleInstalled = Get-ItemProperty "HKLM:\SOFTWARE\Microsoft\Windows\CurrentVersion\Uninstall\*" -ErrorAction SilentlyContinue |
     Where-Object { $_.DisplayName -like "*ASP.NET Core*8.0*Hosting Bundle*" }
 if (-not $hostingBundleInstalled) {
-    Write-Host "Installing .NET 8 Hosting Bundle via winget..." -ForegroundColor Cyan
+    Write-Host "Downloading .NET 8 Hosting Bundle..." -ForegroundColor Cyan
+    $hostingBundleUrl = "https://builds.dotnet.microsoft.com/dotnet/aspnetcore/Runtime/8.0.26/dotnet-hosting-8.0.26-win.exe"
+    $hostingBundleInstaller = "C:\Temp\dotnet-hosting-8.0.26-win.exe"
+    Invoke-WebRequest -Uri $hostingBundleUrl -OutFile $hostingBundleInstaller -UseBasicParsing
 
-    winget install --id Microsoft.DotNet.HostingBundle.8 --exact --silent --accept-source-agreements --accept-package-agreements
+    Write-Host "Installing .NET 8 Hosting Bundle..." -ForegroundColor Cyan
+    Start-Process -FilePath $hostingBundleInstaller -ArgumentList "/install", "/quiet", "/norestart" -Wait -NoNewWindow
 
     Write-Host ".NET 8 Hosting Bundle installation complete." -ForegroundColor Green
 } else {
