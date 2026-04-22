@@ -3,9 +3,9 @@
 # ============================================================================
 #$webDeployUrl = "https://download.microsoft.com/download/0/1/D/01DC28EA-638C-4A22-A57B-4CEF97755C6C/WebDeploy_amd64_en-US.msi"
 $webDeployUrl = "https://sqlmiget.blob.core.windows.net/randf/WebDeploy_amd64_en-US.msi?sp=r&st=2026-04-22T16:01:16Z&se=2026-04-29T00:16:16Z&spr=https&sv=2025-11-05&sr=b&sig=QRlI0hDfcHrbkvR0gGLISqPTHeTUgY4Wb22n8WpW39U%3D"
-$webDeployInstaller = "$env:TEMP\WebDeploy_amd64_en-US.msi"
+$webDeployInstaller = "C:\Temp\WebDeploy_amd64_en-US.msi"
 $exportedSiteUrl = "https://sqlmiget.blob.core.windows.net/randf/Todo.zip?sp=r&st=2026-04-16T18:19:56Z&se=2026-04-24T02:34:56Z&spr=https&sv=2025-11-05&sr=b&sig=L6OB4GN%2Byzn9GZhDg%2FlqCAjacNsZ6CJYWXy%2BMP%2Bibmw%3D"
-$exportedSiteZipPath = "$env:TEMP\exported-site.zip"
+$exportedSiteZipPath = "C:\Temp\exported-site.zip"
 $siteName = "SimpleTodoPortal"
 $sitePhysicalPath = "C:\inetpub\wwwroot\SimpleTodoPortal"
 $sitePort = 80
