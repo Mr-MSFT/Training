@@ -223,8 +223,7 @@ Write-Host "Database 'TodoDb' restored successfully."
 # -----------------------------
 Write-Section "Running SQL configuration (database, login, user)"
 $sqlCommands = @(
-  "use TodoDb;",
-  "alter user todouser with login = todouser;"
+  "use TodoDb; alter user todouser with login = todouser;"
 )
 
 try {
