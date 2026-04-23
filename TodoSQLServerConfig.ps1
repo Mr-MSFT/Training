@@ -188,8 +188,6 @@ Write-Host "Firewall rules created for TCP port $TcpPort and UDP port 1434."
 
 Write-Section "Done"
 Write-Host "SQL Server 2025 Express installed as DEFAULT instance ($InstanceName) and TCP/IP + Named Pipes enabled."
-Write-Host "Database 'TodoDb' created with login 'todouser'."
-Write-Host "SQL Server Management Studio (SSMS) installed."
 Write-Host "Tip: Connect remotely using: tcp:<ServerName>,$TcpPort (if you enabled static port)."
 
 # -----------------------------
@@ -225,9 +223,8 @@ Write-Host "Database 'TodoDb' restored successfully."
 # -----------------------------
 Write-Section "Running SQL configuration (database, login, user)"
 $sqlCommands = @(
-  "CREATE LOGIN todouser WITH PASSWORD = 'ReplaceWithARealPassword!';",
-  "USE TodoDb; CREATE USER todouser FOR LOGIN todouser;",
-  "USE TodoDb; ALTER ROLE db_owner ADD MEMBER todouser;"
+  "use TodoDb;",
+  "alter user todouser with login = todouser;"
 )
 
 try {
