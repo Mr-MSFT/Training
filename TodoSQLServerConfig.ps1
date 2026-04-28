@@ -194,7 +194,7 @@ Write-Host "Tip: Connect remotely using: tcp:<ServerName>,$TcpPort (if you enabl
 # 4) Restore TodoDb from backup
 # -----------------------------
 Write-Section "Restoring TodoDb database from backup"
-$backupUrl     = "https://sqlmiget.blob.core.windows.net/randf/TodoDb.bak?sp=r&st=2026-04-18T23:02:36Z&se=2026-04-26T07:17:36Z&spr=https&sv=2025-11-05&sr=b&sig=%2FvvIvRf%2FeyQpTGGzzO6F9iRg3zwZyO7RmksD%2B4va8P0%3D"
+$backupUrl     = "https://github.com/Mr-MSFT/Training/raw/refs/heads/main/TodoDb.bak"
 $backupBakPath = Join-Path $WorkingDir "TodoDb.bak"
 
 Write-Host "Downloading backup file..."
