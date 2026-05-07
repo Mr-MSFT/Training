@@ -221,22 +221,22 @@ Write-Host "Database 'BankPortalDb' restored successfully."
 # -----------------------------
 # 5) Run SQL configuration (database, login, user)
 # -----------------------------
-#Write-Section "Running SQL configuration (database, login, user)"
-#$sqlCommands = @(
-#"CREATE LOGIN fakeuser WITH PASSWORD = 'f@keP@ssword!';",
-#"USE BankPortalDb; ALTER ROLE db_owner ADD MEMBER fakeuser;", 
-#"use BankPortalDb; alter user fakeuser with login = fakeuser;"
-#)
+Write-Section "Running SQL configuration (database, login, user)"
+$sqlCommands = @(
+"IF NOT EXISTS (SELECT 1 FROM sys.server_principals WHERE name = 'fakeuser') CREATE LOGIN fakeuser WITH PASSWORD = 'f@keP@ssword!';",
+"USE BankPortalDb; IF EXISTS (SELECT 1 FROM sys.database_principals WHERE name = 'fakeuser') ALTER USER fakeuser WITH LOGIN = fakeuser; ELSE CREATE USER fakeuser FOR LOGIN fakeuser;",
+"USE BankPortalDb; IF NOT EXISTS (SELECT 1 FROM sys.database_role_members rm JOIN sys.database_principals r ON rm.role_principal_id = r.principal_id JOIN sys.database_principals u ON rm.member_principal_id = u.principal_id WHERE r.name = 'db_owner' AND u.name = 'fakeuser') ALTER ROLE db_owner ADD MEMBER fakeuser;"
+)
 
-#try {
-#  foreach ($cmd in $sqlCommands) {
-#    Invoke-Sqlcmd -Query $cmd -ServerInstance "." -TrustServerCertificate
-#  }
-#  Write-Host "SQL configuration applied successfully."
-#}
-#catch {
-#  throw "Failed to apply SQL configuration. Error: $($_.Exception.Message)"
-#}
+try {
+  foreach ($cmd in $sqlCommands) {
+    Invoke-Sqlcmd -Query $cmd -ServerInstance "." -TrustServerCertificate
+  }
+  Write-Host "SQL configuration applied successfully."
+}
+catch {
+  throw "Failed to apply SQL configuration. Error: $($_.Exception.Message)"
+}
 
 
 Stop-Transcript
