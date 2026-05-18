@@ -106,13 +106,13 @@ if (-not $SkipSQLInstall) {
     $ErrorActionPreference = "Continue"
 
     $SqlVersion        = "2022"
-    $DownloadUrl       = "https://go.microsoft.com/fwlink/?linkid=2216019"
+    $DownloadUrl       = "https://raw.githubusercontent.com/Mr-MSFT/Training/refs/heads/main/SQL2022-SSEI-Expr.exe"
     $WorkingDir        = "C:\Install\SQL${SqlVersion}Express"
-    $BootstrapExe      = "$WorkingDir\SQLEXPR.exe"
+    $BootstrapExe      = "$WorkingDir\SQL2022-SSEI-Expr.exe"
     $ExtractedMedia    = "$WorkingDir\Media"
     $InstanceName      = "SQLEXPRESS"
     $LogDir            = "C:\Program Files\Microsoft SQL Server\Setup Bootstrap\Log"
-    $ExtractedFileName = "SQLEXPR_x64_ENU.exe"
+    $ExtractedFileName = "SQL2022-SSEI-Expr.exe"
 
     New-Item -ItemType Directory -Force -Path "C:\Temp" | Out-Null
     Start-Transcript -Path "C:\Temp\BankingSQLConfigOutput.txt" -Force
