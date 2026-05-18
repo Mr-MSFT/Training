@@ -112,7 +112,7 @@ if (-not $SkipSQLInstall) {
     $ExtractedMedia    = "$WorkingDir\Media"
     $InstanceName      = "SQLEXPRESS"
     $LogDir            = "C:\Program Files\Microsoft SQL Server\Setup Bootstrap\Log"
-    $ExtractedFileName = "SQL2022-SSEI-Expr.exe"
+    $ExtractedFileName = "SQLEXPR_x64_ENU.exe"
 
     New-Item -ItemType Directory -Force -Path "C:\Temp" | Out-Null
     Start-Transcript -Path "C:\Temp\BankingSQLConfigOutput.txt" -Force
