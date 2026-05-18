@@ -1,11 +1,11 @@
 #Requires -RunAsAdministrator
 <#
 .SYNOPSIS
-    Installs SQL Server 2025 Express, configures the BankPortalDb database, and
+    Installs SQL Server 2022 Express, configures the BankPortalDb database, and
     deploys the BankPortal ASP.NET MVC 5 web application to IIS.
 
 .DESCRIPTION
-    Phase 1 - SQL Server Express 2025:
+    Phase 1 - SQL Server Express 2022:
       Downloads and installs SQL Server Express as the SQLEXPRESS named instance,
       enables TCP/IP and Named Pipes, sets Mixed Mode authentication, restores the
       BankPortalDb database from a backup, and creates the application SQL login
@@ -99,13 +99,13 @@ function Write-OK      { param([string]$Msg) Write-Host "    [OK] $Msg"  -Foregr
 function Write-Section { param([string]$Msg) Write-Host ""; Write-Host "==== $Msg ====" -ForegroundColor Cyan }
 
 # ======================================================================
-# SQL. SQL Server 2025 Express — Install and Configure
+# SQL. SQL Server 2022 Express — Install and Configure
 # ======================================================================
 if (-not $SkipSQLInstall) {
     $savedEAP          = $ErrorActionPreference
     $ErrorActionPreference = "Continue"
 
-    $SqlVersion        = "2025"
+    $SqlVersion        = "2022"
     $DownloadUrl       = "https://go.microsoft.com/fwlink/?linkid=2216019"
     $WorkingDir        = "C:\Install\SQL${SqlVersion}Express"
     $BootstrapExe      = "$WorkingDir\SQLEXPR.exe"
