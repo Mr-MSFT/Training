@@ -1478,6 +1478,9 @@ BEGIN
 END
 ELSE
     PRINT 'Database already exists - skipping.';
+
+ALTER DATABASE [$SqlDatabase] SET COMPATIBILITY_LEVEL = 160;
+PRINT 'Compatibility level set to 160 (SQL Server 2022).';
 "@
     try {
         if ($SqlUser -and $SqlPassword) {
