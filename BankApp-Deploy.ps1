@@ -1,49 +1,24 @@
 #Requires -RunAsAdministrator
 <#
 .SYNOPSIS
-    Installs SQL Server 2022 Express, configures the BankPortalDb database, and
-    deploys the BankPortal ASP.NET MVC 5 web application to IIS.
+    Creates and deploys a simple .NET 4.6.2 ASP.NET MVC banking web application.
 
 .DESCRIPTION
-    Phase 1 - SQL Server Express 2022:
-      Downloads and installs SQL Server Express as the SQLEXPRESS named instance,
-      enables TCP/IP and Named Pipes, sets Mixed Mode authentication, restores the
-      BankPortalDb database from a backup, and creates the application SQL login
-      with sysadmin permissions.
-
-    Phase 2 - BankPortal Application Deployment:
-      Scaffolds the ASP.NET MVC 5 / .NET 4.6.2 BankPortal project, restores NuGet
-      packages, builds with MSBuild, and deploys to IIS.
-
-.PARAMETER SaPassword
-    SA account password set during SQL Server Express installation.
-
-.PARAMETER SysAdminAccounts
-    Windows account(s) granted sysadmin during SQL Server Express setup.
-
-.PARAMETER SetStaticTcpPort
-    When true, configures SQL Server to listen on a fixed TCP port.
-
-.PARAMETER TcpPort
-    Static TCP port number for SQL Server (default 1433).
+    Scaffolds a Bank Portal web app (ASP.NET MVC 5 / .NET 4.6.2 / Entity Framework 6),
+    restores NuGet packages, builds with MSBuild, creates the SQL database, and deploys
+    to IIS.
 
 .PARAMETER ProjectPath
-    Directory where the BankPortal project source will be created.
+    Directory where the project source will be created.
 
 .PARAMETER DeployPath
     IIS physical path for the deployed application.
 
 .PARAMETER SqlServer
-    SQL Server instance name used by the application (default: localhost).
+    SQL Server instance name. Defaults to the local default instance.
 
 .PARAMETER SqlDatabase
-    Name of the database to restore and use.
-
-.PARAMETER SqlUser
-    SQL login name created for the application.
-
-.PARAMETER SqlPassword
-    Password for the SQL login.
+    Name of the database to create/use.
 
 .PARAMETER AppPoolName
     IIS application pool name.
@@ -54,26 +29,13 @@
 .PARAMETER Port
     HTTP port for the IIS site.
 
-.PARAMETER SkipSQLInstall
-    Skip Phase 1 (SQL Server Express installation and database configuration).
-
 .PARAMETER SkipIIS
-    Skip IIS site configuration (build and copy files only).
+    Skip IIS configuration (build and publish only).
 
 .PARAMETER SkipDatabase
-    Skip BankDb schema initialisation step in Phase 2.
-
-.PARAMETER SkipPrerequisites
-    Skip Windows feature and tooling prerequisite installation in Phase 2.
+    Skip database creation.
 #>
 param(
-    # SQL Server Express install
-    [string]$SaPassword       = "P@ssw0rd!ChangeMe",
-    [string]$SysAdminAccounts = "BUILTIN\Administrators",
-    [bool]  $SetStaticTcpPort = $true,
-    [int]   $TcpPort          = 1433,
-
-    # Application deployment
     [string]$ProjectPath = "C:\BankPortal",
     [string]$DeployPath  = "C:\inetpub\wwwroot\BankPortal",
     [string]$SqlServer   = "localhost",
@@ -83,9 +45,6 @@ param(
     [string]$AppPoolName = "BankPortalPool",
     [string]$SiteName    = "BankPortal",
     [int]   $Port        = 8080,
-
-    # Skip switches
-    [switch]$SkipSQLInstall,
     [switch]$SkipIIS,
     [switch]$SkipDatabase,
     [switch]$SkipPrerequisites
@@ -95,159 +54,7 @@ Set-StrictMode -Version Latest
 $ErrorActionPreference = 'Stop'
 
 function Write-Step { param([string]$Msg) Write-Host "`n==> $Msg" -ForegroundColor Cyan }
-function Write-OK      { param([string]$Msg) Write-Host "    [OK] $Msg"  -ForegroundColor Green }
-function Write-Section { param([string]$Msg) Write-Host ""; Write-Host "==== $Msg ====" -ForegroundColor Cyan }
-
-# ======================================================================
-# SQL. SQL Server 2022 Express — Install and Configure
-# ======================================================================
-if (-not $SkipSQLInstall) {
-    $savedEAP          = $ErrorActionPreference
-    $ErrorActionPreference = "Continue"
-
-    $SqlVersion        = "2022"
-    $DownloadUrl       = "https://raw.githubusercontent.com/Mr-MSFT/Training/refs/heads/main/SQL2022-SSEI-Expr.exe"
-    $WorkingDir        = "C:\Install\SQL${SqlVersion}Express"
-    $BootstrapExe      = "$WorkingDir\SQL2022-SSEI-Expr.exe"
-    $ExtractedMedia    = "$WorkingDir\Media"
-    $InstanceName      = "SQLEXPRESS"
-    $LogDir            = "C:\Program Files\Microsoft SQL Server\Setup Bootstrap\Log"
-    $ExtractedFileName = "SQLEXPR_x64_ENU.exe"
-
-    New-Item -ItemType Directory -Force -Path "C:\Temp" | Out-Null
-    Start-Transcript -Path "C:\Temp\BankingSQLConfigOutput.txt" -Force
-
-    # -- Download and install SQL Express ---------------------------------
-    Write-Section "SQL Server $SqlVersion Express - Download and Install"
-    $sqlInstalled = Get-Service -Name "MSSQL`$SQLEXPRESS" -ErrorAction SilentlyContinue
-    if ($sqlInstalled) {
-        Write-Host "SQL Server Express is already installed, skipping." -ForegroundColor Yellow
-    } else {
-        New-Item -ItemType Directory -Force -Path $WorkingDir     | Out-Null
-        New-Item -ItemType Directory -Force -Path $ExtractedMedia | Out-Null
-
-        Invoke-WebRequest -Uri $DownloadUrl -OutFile $BootstrapExe
-
-        Start-Process -FilePath $BootstrapExe `
-            -ArgumentList "/Q /ACTION=Download /MEDIATYPE=Core /MEDIAPATH=$ExtractedMedia" `
-            -Wait
-
-        $SetupExe = Get-ChildItem -Path $ExtractedMedia -Recurse -Filter $ExtractedFileName |
-                    Select-Object -First 1
-
-        $sqlInstallArgs = @(
-            "/Q",
-            "/ACTION=Install",
-            "/FEATURES=SQL",
-            "/INSTANCENAME=$InstanceName",
-            "/SECURITYMODE=SQL",
-            "/SAPWD=$SaPassword",
-            "/SQLSYSADMINACCOUNTS=$SysAdminAccounts",
-            "/TCPENABLED=1",
-            "/SQLSVCSTARTUPTYPE=Automatic",
-            "/SQLCOLLATION=SQL_Latin1_General_CP1_CI_AS",
-            "/IACCEPTSQLSERVERLICENSETERMS"
-        ) -join " "
-
-        Start-Process -FilePath $SetupExe.FullName -ArgumentList $sqlInstallArgs -Wait -NoNewWindow
-        Write-Host "SQL Server Express installation complete. Logs: $LogDir"
-    }
-
-    # -- Enable TCP/IP and Named Pipes ------------------------------------
-    Write-Section "Enabling TCP/IP and Named Pipes via SMO WMI"
-    if (-not (Get-Module -ListAvailable -Name SqlServer)) {
-        Write-Host "Installing SqlServer PowerShell module..."
-        Install-PackageProvider -Name NuGet -MinimumVersion 2.8.5.201 -Force
-        Install-Module -Name SqlServer -Force -AllowClobber -Scope AllUsers
-    }
-    Import-Module SqlServer -ErrorAction Stop
-
-    try {
-        $computer = (Get-Item env:\COMPUTERNAME).Value
-        $wmi      = New-Object Microsoft.SqlServer.Management.Smo.Wmi.ManagedComputer $computer
-
-        $tcpUri = "ManagedComputer[@Name='$computer']/ServerInstance[@Name='$InstanceName']/ServerProtocol[@Name='Tcp']"
-        $tcp    = $wmi.GetSmoObject($tcpUri)
-        $tcp.IsEnabled = $true
-        $tcp.Alter()
-
-        $npUri = "ManagedComputer[@Name='$computer']/ServerInstance[@Name='$InstanceName']/ServerProtocol[@Name='Np']"
-        $np    = $wmi.GetSmoObject($npUri)
-        $np.IsEnabled = $true
-        $np.Alter()
-
-        if ($SetStaticTcpPort) {
-            Write-Section "Setting static TCP port $TcpPort on all IPs"
-            foreach ($ip in $tcp.IPAddresses) {
-                foreach ($prop in $ip.IPAddressProperties) {
-                    if ($prop.Name -eq "TcpDynamicPorts") { $prop.Value = "" }
-                    if ($prop.Name -eq "TcpPort")         { $prop.Value = "$TcpPort" }
-                    if ($prop.Name -eq "Enabled")         { $prop.Value = $true }
-                }
-            }
-            $tcp.Alter()
-        }
-    }
-    catch {
-        throw "Failed enabling protocols via SMO/WMI. Error: $($_.Exception.Message)"
-    }
-
-    # -- Mixed Mode authentication ----------------------------------------
-    Write-Section "Ensuring Mixed Mode authentication (SQL + Windows)"
-    $regPath = "HKLM:\SOFTWARE\Microsoft\Microsoft SQL Server\MSSQL17.MSSQLSERVER\MSSQLServer"
-    if (Test-Path $regPath) {
-        $currentMode = (Get-ItemProperty -Path $regPath -Name LoginMode -ErrorAction SilentlyContinue).LoginMode
-        if ($currentMode -ne 2) {
-            Set-ItemProperty -Path $regPath -Name LoginMode -Value 2
-            Write-Host "Mixed Mode authentication enabled (LoginMode = 2)."
-        } else {
-            Write-Host "Mixed Mode authentication already enabled."
-        }
-    } else {
-        Write-Warning "Registry path not found - verify SQL Server instance name and version."
-    }
-
-    # -- Restart service --------------------------------------------------
-    Write-Section "Restarting SQL Server service to apply changes"
-    Restart-Service -Name 'MSSQL$SQLEXPRESS' -Force
-    
-# -- Create SQL login with sysadmin permissions ----------------------
-    Write-Section "Creating SQL login '$SqlUser' with sysadmin permissions"
-    $sqlSetupScript = @"
-IF NOT EXISTS (SELECT 1 FROM sys.server_principals WHERE name = N'$($SqlUser)')
-BEGIN
-    CREATE LOGIN [$($SqlUser)] WITH PASSWORD = N'$($SqlPassword)',
-        CHECK_POLICY = OFF, CHECK_EXPIRATION = OFF;
-    PRINT 'Login created.';
-END
-ELSE
-BEGIN
-    ALTER LOGIN [$($SqlUser)] WITH PASSWORD = N'$($SqlPassword)',
-        CHECK_POLICY = OFF, CHECK_EXPIRATION = OFF;
-    PRINT 'Login already exists; password updated.';
-END
-
-IF IS_SRVROLEMEMBER('sysadmin', N'$($SqlUser)') = 0
-BEGIN
-    ALTER SERVER ROLE sysadmin ADD MEMBER [$($SqlUser)];
-    PRINT 'sysadmin role granted.';
-END
-ELSE
-BEGIN
-    PRINT 'Login is already a member of sysadmin.';
-END
-"@
-    try {
-        Invoke-Sqlcmd -Query $sqlSetupScript -ServerInstance "." -TrustServerCertificate
-        Write-Host "SQL login '$SqlUser' configured with sysadmin permissions."
-    }
-    catch {
-        throw "Failed to configure SQL login '$SqlUser'. Error: $($_.Exception.Message)"
-    }
-
-  
-    $ErrorActionPreference = $savedEAP
-}
+function Write-OK   { param([string]$Msg) Write-Host "    [OK] $Msg"  -ForegroundColor Green }
 
 # ======================================================================
 # 0. Windows Server 2025 Prerequisites
@@ -274,8 +81,6 @@ if (-not $SkipPrerequisites) {
         'Web-Windows-Auth',
         'Web-Mgmt-Tools',
         'Web-Mgmt-Console',
-        'Web-Scripting-Tools', # IIS Management Scripts and Tools
-        'Web-Mgmt-Service',    # IIS Management Service (required for Delegation UI)
         'NET-Framework-45-ASPNET',
         'NET-WCF-HTTP-Activation45'
     )
@@ -287,38 +92,6 @@ if (-not $SkipPrerequisites) {
         }
     }
     Write-OK "IIS and ASP.NET Windows features installed"
-
-    # --- Web Deploy 4.0 (all components) --------------------------------
-    $wdRegKey    = 'HKLM:\SOFTWARE\Microsoft\IIS Extensions\MSDeploy\4'
-    $wdInstalled = Test-Path $wdRegKey
-    if (-not $wdInstalled) {
-        Write-Host "    Downloading Web Deploy 4.0..." -ForegroundColor Gray
-        $wdInstaller = "$env:TEMP\WebDeploy_amd64_en-US.msi"
-        $wdLogPath   = "C:\Temp\WebDeploy-Install.log"
-        Invoke-WebRequest `
-            -Uri 'https://github.com/Mr-MSFT/Training/raw/refs/heads/main/WebDeploy_amd64_en-US.msi' `
-            -OutFile $wdInstaller -UseBasicParsing
-        Write-Host "    Installing Web Deploy 4.0 (all components)..." -ForegroundColor Gray
-        $wdArgs = @(
-            "/i",   $wdInstaller,
-            "/qn",
-            "/norestart",
-            "ADDLOCAL=ALL",
-            "/l*v", $wdLogPath
-        )
-        $wdProc = Start-Process -FilePath "msiexec.exe" -ArgumentList $wdArgs -Wait -PassThru
-        Remove-Item $wdInstaller -Force -ErrorAction SilentlyContinue
-        if ($wdProc.ExitCode -notin @(0, 3010)) {
-            Write-Warning "Web Deploy installer exited with code $($wdProc.ExitCode). See log: $wdLogPath"
-        } else {
-            Write-OK "Web Deploy 4.0 installed (log: $wdLogPath)"
-            if ($wdProc.ExitCode -eq 3010) {
-                Write-Warning "A reboot is required to complete the Web Deploy installation."
-            }
-        }
-    } else {
-        Write-OK "Web Deploy 4.0 already present"
-    }
 
     # --- Visual C++ 2015-2022 Redistributable (x64) ---------------------
     # Microsoft.Data.SqlClient.SNI.x64.dll is a native DLL that links against
@@ -1753,23 +1526,6 @@ if (-not $SkipIIS) {
 }
 
 # ======================================================================
-# Desktop shortcut — all users
-# ======================================================================
-Write-Step "Creating desktop shortcut for all users"
-try {
-    $siteUrl      = "http://localhost:$Port"
-    $shortcutPath = Join-Path ([Environment]::GetFolderPath('CommonDesktopDirectory')) "BankPortal.url"
-    $wsh          = New-Object -ComObject WScript.Shell
-    $shortcut     = $wsh.CreateShortcut($shortcutPath)
-    $shortcut.TargetPath = $siteUrl
-    $shortcut.Save()
-    Write-OK "Shortcut created: $shortcutPath -> $siteUrl"
-}
-catch {
-    Write-Warning "Could not create desktop shortcut: $_"
-}
-
-# ======================================================================
 # Done
 # ======================================================================
 Write-Host ""
@@ -1780,84 +1536,3 @@ Write-Host "  DB   : $SqlServer \ $SqlDatabase"               -ForegroundColor G
 Write-Host "  Path : $DeployPath"                             -ForegroundColor Green
 Write-Host "================================================" -ForegroundColor Green
 Write-Host ""
-
-# ======================================================================
-# Generate C:\Temp\BackUpSQLDB.ps1
-# ======================================================================
-Write-Step "Creating C:\Temp\BackUpSQLDB.ps1"
-New-Item -ItemType Directory -Force -Path "C:\Temp" | Out-Null
-
-$backupScript = @'
-#Requires -RunAsAdministrator
-<#
-.SYNOPSIS
-    Backs up the BankPortalDb SQL Server database to C:\Temp\BankPortalDb.bak.
-#>
-
-$BackupPath = "C:\Temp\BankPortalDb.bak"
-$Database   = "BankPortalDb"
-$Instance   = ".\SQLEXPRESS"
-
-# Ensure SqlServer module is available
-if (-not (Get-Command Backup-SqlDatabase -ErrorAction SilentlyContinue)) {
-    Install-PackageProvider -Name NuGet -MinimumVersion 2.8.5.201 -Force -Scope AllUsers | Out-Null
-    Install-Module -Name SqlServer -Force -AllowClobber -Scope AllUsers -ErrorAction Stop
-}
-Import-Module SqlServer -ErrorAction Stop
-
-New-Item -ItemType Directory -Force -Path (Split-Path $BackupPath) | Out-Null
-
-if (Test-Path $BackupPath) {
-    Remove-Item $BackupPath -Force
-    Write-Host "Existing backup removed: $BackupPath" -ForegroundColor Yellow
-}
-
-Write-Host "Starting backup of '$Database' to '$BackupPath'..." -ForegroundColor Cyan
-
-Backup-SqlDatabase `
-    -ServerInstance $Instance `
-    -Database       $Database `
-    -BackupFile     $BackupPath `
-    -Initialize `
-    -TrustServerCertificate
-
-Write-Host "Backup complete: $BackupPath" -ForegroundColor Green
-'@
-
-Set-Content -Path "C:\Temp\BackUpSQLDB.ps1" -Value $backupScript -Encoding UTF8
-Write-OK "C:\Temp\BackUpSQLDB.ps1 created"
-
-# ======================================================================
-# Install App Service Migration Assistant
-# ======================================================================
-Write-Step "Installing App Service Migration Assistant"
-try {
-    $msaInstallerUrl  = "https://appmigration.microsoft.com/api/download/windowspreview/AppServiceMigrationAssistant.msi"
-    $msaInstallerPath = "$env:TEMP\AppServiceMigrationAssistant.msi"
-    $msaLogPath       = "C:\Temp\AppServiceMigrationAssistant-Install.log"
-
-    Write-Host "    Downloading App Service Migration Assistant..." -ForegroundColor Gray
-    Invoke-WebRequest -Uri $msaInstallerUrl -OutFile $msaInstallerPath -UseBasicParsing
-
-    Write-Host "    Running installer (this may take a moment)..." -ForegroundColor Gray
-    $msiArgs = @(
-        "/i",   $msaInstallerPath,
-        "/qn",
-        "/norestart",
-        "/l*v", $msaLogPath
-    )
-    $proc = Start-Process -FilePath "msiexec.exe" -ArgumentList $msiArgs -Wait -PassThru
-    if ($proc.ExitCode -notin @(0, 3010)) {
-        throw "msiexec exited with code $($proc.ExitCode). See log: $msaLogPath"
-    }
-    Remove-Item $msaInstallerPath -Force -ErrorAction SilentlyContinue
-    Write-OK "App Service Migration Assistant installed (log: $msaLogPath)"
-    if ($proc.ExitCode -eq 3010) {
-        Write-Warning "A reboot is required to complete the App Service Migration Assistant installation."
-    }
-}
-catch {
-    Write-Warning "Could not install App Service Migration Assistant: $_"
-}
-
-  Stop-Transcript 
