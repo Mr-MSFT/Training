@@ -1,12 +1,12 @@
 #Requires -RunAsAdministrator
 <#
 .SYNOPSIS
-    Installs SQL Server 2025 Express, configures the BankPortalDb database, and
+    Installs SQL Server 2022 Developer, configures the BankPortalDb database, and
     deploys the BankPortal ASP.NET MVC 5 web application to IIS.
 
 .DESCRIPTION
-    Phase 1 - SQL Server Express 2025:
-      Downloads and installs SQL Server Express as the SQLEXPRESS named instance,
+    Phase 1 - SQL Server Developer 2022:
+      Downloads and installs SQL Server Developer as the MSSQLSERVER default instance,
       enables TCP/IP and Named Pipes, sets Mixed Mode authentication, restores the
       BankPortalDb database from a backup, and creates the application SQL login
       with sysadmin permissions.
@@ -99,29 +99,29 @@ function Write-OK      { param([string]$Msg) Write-Host "    [OK] $Msg"  -Foregr
 function Write-Section { param([string]$Msg) Write-Host ""; Write-Host "==== $Msg ====" -ForegroundColor Cyan }
 
 # ======================================================================
-# SQL. SQL Server 2025 Express — Install and Configure
+# SQL. SQL Server 2022 Developer — Install and Configure
 # ======================================================================
 if (-not $SkipSQLInstall) {
     $savedEAP          = $ErrorActionPreference
     $ErrorActionPreference = "Continue"
 
-    $SqlVersion        = "2025"
-    $DownloadUrl       = "https://go.microsoft.com/fwlink/?linkid=2216019"
-    $WorkingDir        = "C:\Install\SQL${SqlVersion}Express"
-    $BootstrapExe      = "$WorkingDir\SQLEXPR.exe"
+    $SqlVersion        = "2022"
+    $DownloadUrl       = "https://go.microsoft.com/fwlink/p/?linkid=2215158&clcid=0x409"
+    $WorkingDir        = "C:\Install\SQL${SqlVersion}Dev"
+    $BootstrapExe      = "$WorkingDir\SQL2022-SSEI-Dev.exe"
     $ExtractedMedia    = "$WorkingDir\Media"
-    $InstanceName      = "SQLEXPRESS"
+    $InstanceName      = "MSSQLSERVER"
     $LogDir            = "C:\Program Files\Microsoft SQL Server\Setup Bootstrap\Log"
-    $ExtractedFileName = "SQLEXPR_x64_ENU.exe"
+    $IsoFileName       = "SQLServer2022-x64-ENU-Dev.iso"
 
     New-Item -ItemType Directory -Force -Path "C:\Temp" | Out-Null
     Start-Transcript -Path "C:\Temp\BankingSQLConfigOutput.txt" -Force
 
-    # -- Download and install SQL Express ---------------------------------
-    Write-Section "SQL Server $SqlVersion Express - Download and Install"
-    $sqlInstalled = Get-Service -Name "MSSQL`$SQLEXPRESS" -ErrorAction SilentlyContinue
+    # -- Download and install SQL Server 2022 Developer ------------------
+    Write-Section "SQL Server $SqlVersion Developer - Download and Install"
+    $sqlInstalled = Get-Service -Name "MSSQLSERVER" -ErrorAction SilentlyContinue
     if ($sqlInstalled) {
-        Write-Host "SQL Server Express is already installed, skipping." -ForegroundColor Yellow
+        Write-Host "SQL Server Developer is already installed, skipping." -ForegroundColor Yellow
     } else {
         New-Item -ItemType Directory -Force -Path $WorkingDir     | Out-Null
         New-Item -ItemType Directory -Force -Path $ExtractedMedia | Out-Null
@@ -129,16 +129,18 @@ if (-not $SkipSQLInstall) {
         Invoke-WebRequest -Uri $DownloadUrl -OutFile $BootstrapExe
 
         Start-Process -FilePath $BootstrapExe `
-            -ArgumentList "/Q /ACTION=Download /MEDIATYPE=Core /MEDIAPATH=$ExtractedMedia" `
+            -ArgumentList "/Q /ACTION=Download /MEDIATYPE=ISO /MEDIAPATH=$ExtractedMedia" `
             -Wait
 
-        $SetupExe = Get-ChildItem -Path $ExtractedMedia -Recurse -Filter $ExtractedFileName |
-                    Select-Object -First 1
+        $IsoPath     = "$ExtractedMedia\$IsoFileName"
+        $mountResult = Mount-DiskImage -ImagePath $IsoPath -PassThru
+        $driveLetter = ($mountResult | Get-Volume).DriveLetter
+        $SetupExePath = "${driveLetter}:\setup.exe"
 
         $sqlInstallArgs = @(
             "/Q",
             "/ACTION=Install",
-            "/FEATURES=SQL",
+            "/FEATURES=SQLENGINE",
             "/INSTANCENAME=$InstanceName",
             "/SECURITYMODE=SQL",
             "/SAPWD=$SaPassword",
@@ -149,8 +151,12 @@ if (-not $SkipSQLInstall) {
             "/IACCEPTSQLSERVERLICENSETERMS"
         ) -join " "
 
-        Start-Process -FilePath $SetupExe.FullName -ArgumentList $sqlInstallArgs -Wait -NoNewWindow
-        Write-Host "SQL Server Express installation complete. Logs: $LogDir"
+        try {
+            Start-Process -FilePath $SetupExePath -ArgumentList $sqlInstallArgs -Wait -NoNewWindow
+            Write-Host "SQL Server 2022 Developer installation complete. Logs: $LogDir"
+        } finally {
+            Dismount-DiskImage -ImagePath $IsoPath | Out-Null
+        }
     }
 
     # -- Enable TCP/IP and Named Pipes ------------------------------------
@@ -194,7 +200,7 @@ if (-not $SkipSQLInstall) {
 
     # -- Mixed Mode authentication ----------------------------------------
     Write-Section "Ensuring Mixed Mode authentication (SQL + Windows)"
-    $regPath = "HKLM:\SOFTWARE\Microsoft\Microsoft SQL Server\MSSQL17.MSSQLSERVER\MSSQLServer"
+    $regPath = "HKLM:\SOFTWARE\Microsoft\Microsoft SQL Server\MSSQL16.MSSQLSERVER\MSSQLServer"
     if (Test-Path $regPath) {
         $currentMode = (Get-ItemProperty -Path $regPath -Name LoginMode -ErrorAction SilentlyContinue).LoginMode
         if ($currentMode -ne 2) {
@@ -209,7 +215,7 @@ if (-not $SkipSQLInstall) {
 
     # -- Restart service --------------------------------------------------
     Write-Section "Restarting SQL Server service to apply changes"
-    Restart-Service -Name 'MSSQL$SQLEXPRESS' -Force
+    Restart-Service -Name 'MSSQLSERVER' -Force
     
 # -- Create SQL login with sysadmin permissions ----------------------
     Write-Section "Creating SQL login '$SqlUser' with sysadmin permissions"
