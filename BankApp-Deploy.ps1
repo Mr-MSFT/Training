@@ -1802,7 +1802,7 @@ $backupScript = @'
 
 $BackupPath = "C:\Temp\BankPortalDb.bak"
 $Database   = "BankPortalDb"
-$Instance   = ".\SQLEXPRESS"
+$Instance   = "localhost"   # SQL Server 2022 Developer — default instance (MSSQLSERVER)
 
 # Ensure SqlServer module is available
 if (-not (Get-Command Backup-SqlDatabase -ErrorAction SilentlyContinue)) {
@@ -1821,10 +1821,11 @@ if (Test-Path $BackupPath) {
 Write-Host "Starting backup of '$Database' to '$BackupPath'..." -ForegroundColor Cyan
 
 Backup-SqlDatabase `
-    -ServerInstance $Instance `
-    -Database       $Database `
-    -BackupFile     $BackupPath `
+    -ServerInstance     $Instance `
+    -Database           $Database `
+    -BackupFile         $BackupPath `
     -Initialize `
+    -CompressionOption  On `
     -TrustServerCertificate
 
 Write-Host "Backup complete: $BackupPath" -ForegroundColor Green
